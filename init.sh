@@ -25,21 +25,28 @@ echo "==================================================="
 select x in "Create database" "List databases" "Connect to a database" "Drop database" "Exit"
 do
 	case $REPLY in
-		1) read -p "Enter the database name: " name
 
-		if validate $name
-		      then
-	 		 	mkdir ./DBMS/$name
-				echo -ne '█████                     (33%)\r'
-				sleep 0.5
-				echo -ne '█████████████             (66%)\r'
-				sleep 0.5
-				echo -ne '███████████████████████   (100%)\r'
-				echo -ne " Database $name is created successfully \n"
-		      else
-			      echo "Syntax Error Invalid name for database!"
-			      echo "Returning to main menu"
-		  fi
+		1) read -p "Enter the database name: " name
+			if validate $name
+		      	then
+
+				if [[ -d ./DBMS/$name ]]
+			      	then
+					echo "Databas already exists"
+				else
+					mkdir ./DBMS/$name
+					echo -ne '█████                     (33%)\r'
+					sleep 0.5
+					echo -ne '█████████████             (66%)\r'
+					sleep 0.5
+					echo -ne '███████████████████████   (100%)\r'
+					echo -ne " Database $name is created successfully \n"
+			      	fi
+		      	else
+
+			      	echo "Syntax Error Invalid name for database!"
+			      	echo "Returning to main menu"
+		  	fi
 		   ;;
 		2) ls ./DBMS
 		   ;;
