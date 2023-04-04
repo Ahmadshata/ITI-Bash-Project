@@ -25,7 +25,7 @@ echo "==================================================="
 select x in "Create database" "List databases" "Connect to a database" "Drop database" "Exit"
 do
 	case $REPLY in
-
+        
 		1) read -p "Enter the database name: " name
 			if validate $name
 		      	then
@@ -53,47 +53,51 @@ do
 		3) read -p "Enter the database name: " name
 
 
+
 			if [[ -d ./DBMS/$name ]]
 			then
-			select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
-			do
-				case $REPLY in
-					1) . ./create_table ;;
-					2) . ./list_tables ;;
-					3) . ./drop_table ;;
-					4) . ./insert_into ;;
-					5) . ./select_from ;;
-					6) . ./update ;;
-					7) . ./delete ;;
-					8) main ;;
-					*) echo "Invaild input" ;;
+				select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
+				do
+					case $REPLY in
+						1) . ./create_table.sh ;;
+						2) . ./list_tables.sh ;;
+						3) . ./drop_table.sh ;;
+						4) . ./insert_into.sh ;;
+						5) . ./select_from.sh ;;
+						6) . ./update.sh ;;
+						7) . ./delete.sh ;;
+						8) main ;;
+						*) echo "Invaild input" ;;
 					
-				esac
-			done 
-		else
-			echo "Database does not exist"
-		fi ;;
+					esac
+				done 
+			else
+				echo "Database does not exist"
+			fi ;;
 
 		4)read -p "Enter the database name: " name
+
 			if [[ -d ./DBMS/$name ]]
 			then
-		   	echo "Are you sure you want to permanently delete $name"
-		   	select z in "yes" "no"
-		   	do
-			   case $REPLY in
-				   1) rm -rf ./DBMS/$name 
-					   main
-					   break;;
-				   2) main ;;
-				   *) echo "Invalid input" ;;
-			   esac
-		   	done
-		else
-			echo "Database does not exist"
-		fi
-		   ;;
-		5) exit 
-		   ;;
+		   		echo "Are you sure you want to permanently delete $name"
+		   		select z in "yes" "no"
+		   		do
+			   	case $REPLY in
+
+				   	1) rm -rf ./DBMS/$name 
+					   	main
+					   	break;;
+				   	2) main ;;
+				   	*) echo "Invalid input" ;;
+			   	esac
+		   		done
+			else
+				echo "Database does not exist"
+			fi
+		   	;;
+		5) exit
+		       	
+		   	;;
 		*) echo "Invalid input"
 		   echo "Returning to main menu"
 	           ;;
