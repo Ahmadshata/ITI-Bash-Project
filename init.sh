@@ -1,9 +1,16 @@
-#! /bin/bash
+#!/bin/bash
+
 
 # validation regex
+
 regex="^[a-zA-Z]+$"	
 
+# creating the DBMS directory which contains our databases
+
 mkdir DBMS 2> /dev/null
+
+# changing select prompt 
+
 PS3="Choose a number: "
 
 function validate {
@@ -17,17 +24,39 @@ function validate {
 	fi	
 }
 
+function subsidiary {
+
+echo "==================================================="
+echo "                  Connection menu		         "
+echo "==================================================="
+
+select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
+                                do
+                                        case $REPLY in
+                                                1) create_table $1 ;;
+                                                2) . ./list_tables.sh ;;
+                                                3) . ./drop_table.sh ;;
+                                                4) insert.sh $1 ;;
+                                                5) . ./select_from.sh ;;
+                                                6) . ./update.sh ;;
+                                                7) . ./delete.sh ;;
+                                                8) main ;;
+                                                *) echo "Invaild input" ;;
+
+                                        esac
+                                done
+			}
+
 prepare_table()
 {
     read -p "Enter number of columns :" columns_number
-    #column_arr=("")
     type_arr=()
     key=""
-
+    col_num=1
 
     while [[ $columns_number -gt 0 ]]
     do
-        read -p "Enter column name: " column_name 
+        read -p "Enter column $col_num name: " column_name 
         if [[ $column_name =~ $regex ]]
         then
             for value in "${column_arr[@]}"
@@ -44,19 +73,28 @@ prepare_table()
             if [[ $check != 1 ]]
             then
 
-                    read -p "Enter column datatype [int-string] : " column_type
-                    if [[ $column_type == "int" || $column_type == "string" ]]
-                    then
-                        column_arr+=("$column_name")
-                        type_arr+=("$column_type")
+                column_arr+=("$column_name")
+
+		echo "Select column datatype"
+		select dtype in "INTEGER" "VARCHAR"
+		    do
+			case $REPLY in
+			   1)type_arr+=("$dtype")
+				   break;;
+			   2)type_arr+=("$dtype")
+				   break;;
+			   *) echo "Invalid datatype"
+		         esac
+		    done
+
                         if [[ $key == "" ]]
                         then
-                            echo "Make it a Primary Key? "
+                            echo "Make it a Primary Key?"
                             select choice in yes no
                             do
                                 case $choice in 
                                 "yes")
-                                    key=$column_name 
+                                    key=$col_num 
                                     break;;
                                 "no")
                                     break;;
@@ -66,19 +104,35 @@ prepare_table()
                         fi
                         echo
                         columns_number=$(($columns_number-1))
-                    else
-                        echo "Please choose a valid type"
-                    fi
             else
-                echo "column already exists"
+                echo "Column already exists"
+		increment=1
             fi
             check=0
-                  
-                
+                              
         else
             echo "Invalid input, please enter a valid column name"    
         fi
+
+	if [[ $increment != 1 && $column_name != "" ]]
+	then
+	((col_num++))
+	 increment=0
+ 	else
+	 increment=0
+	fi
+
     done
+
+    if [[ $key == "" ]]
+    then
+	    key=${column_arr[0]}
+	    echo "Table must have a primary key"
+	    echo "Column $key is set as your primary key"
+    fi
+
+      touch "$db_path"/"$table_name"
+      echo -e "Table $table_name created successfully \n"
 
 
     {
@@ -91,27 +145,29 @@ prepare_table()
     } >> "$1"
 
     sed -i 's/://' "$1"
+    column_arr=() 
+      subsidiary ./DBMS/$name
 }
 
 
 create_table()
 {
-    table_path="$1"
-    read -p "Enter table name (letters only): " table_name
+    db_path="$1"
+    read -p "Enter table name: " table_name
     if [[ $table_name =~ $regex ]]
     then
-        if [[ -f "$table_path"/"$table_name" ]]
+        if [[ -f "$db_path"/"$table_name" ]]
         then
             echo "Table already exsists"
+	    subsidiary ./DBMS/$name
+	    echo "Returning to connection menu"
         else
-            echo "$table_path"/"$table_name"
-            touch "$table_path"/"$table_name"
-            echo "Table created successfully"
-            table="$table_path"/"$table_name"
-            prepare_table "$table"
+            prepare_table "$db_path"/"$table_name"
         fi
     else
         echo "Invalid table name"
+	    echo "Returning to connection menu"
+	    subsidiary ./DBMS/$name
     fi
     
 }
@@ -158,22 +214,7 @@ do
 
 			if [[ -d ./DBMS/$name ]]
 			then
-				select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
-				do
-					case $REPLY in
-						1) 
-							create_table ./DBMS/$name ;;
-						2) . ./list_tables.sh ;;
-						3) . ./drop_table.sh ;;
-						4) . ./insert_into.sh ;;
-						5) . ./select_from.sh ;;
-						6) . ./update.sh ;;
-						7) . ./delete.sh ;;
-						8) main ;;
-						*) echo "Invaild input" ;;
-					
-					esac
-				done 
+				subsidiary ./DBMS/$name
 			else
 				echo "Database does not exist"
 			fi ;;
