@@ -34,12 +34,12 @@ select y in "Create table" "List tables" "Drop table" "Insert into table" "Selec
                                 do
                                         case $REPLY in
                                                 1) create_table $1 ;;
-                                                2) . ./list_tables.sh ;;
+                                                2) ls $1 | cat ;;
                                                 3) . ./drop_table.sh ;;
                                                 4) insert $1 ;;
                                                 5) . ./select_from.sh ;;
                                                 6) . ./update.sh ;;
-                                                7) . ./delete.sh ;;
+                                                7) delete $1 ;;
                                                 8) main ;;
                                                 *) echo "Invaild input" ;;
 
@@ -146,7 +146,7 @@ prepare_table()
 
     sed -i 's/://' "$1"
     column_arr=() 
-      subsidiary ./DBMS/$name
+      subsidiary "$db_path"
 }
 
 
@@ -159,7 +159,7 @@ create_table()
         if [[ -f "$db_path"/"$table_name" ]]
         then
             echo "Table already exsists"
-	    subsidiary ./DBMS/$name
+	    subsidiary "$db_path"
 	    echo "Returning to connection menu"
         else
             prepare_table "$db_path"/"$table_name"
@@ -167,58 +167,204 @@ create_table()
     else
         echo "Invalid table name"
 	    echo "Returning to connection menu"
-	    subsidiary ./DBMS/$name
+	    subsidiary "$db_path"
     fi
     
+}
+function delete {
+
+db_path="$1"
+
+read -p "Enter table name: " t_name
+if [[ $name =~ $regex ]]
+then
+        if [[ -f "$db_path"/"$t_name" ]]
+        then
+              row_num=`awk -F":" 'END{print NR}' "$db_path"/"$t_name"`
+		select del in "Delete by row" "Delete all"
+		do
+			case $REPLY in 
+			  1) read -p "Enter the number of the row you want to delete: " row
+				if [[ $row =~ ^[0-9]+$ ]]
+				then
+				  var=$((row+3)) 
+                                 if [[ $var -le $row_num ]]
+				 then
+					 sed -i "${var}d" "$db_path"/"$t_name"
+					 break
+				 else
+					 echo "Row does not exist!"
+				 fi
+			  	else
+					echo "invalid input"
+				fi
+				  ;;
+			  2)select choice in "yes" "no"
+			  do
+				  case $REPLY in 
+					  1) sed -i '4,$d' "$db_path"
+						 break ;;
+
+					  2) echo "Returning back to connection menu"
+                                             subsidiary "$db_path"
+					     ;;
+
+				          *) echo "Invalid input"
+						  ;;
+				  esac
+			  done 
+				  ;;
+
+			  *) echo "Invalid input"
+				  ;;
+			esac
+		done
+        else
+                echo "Table does not exist"
+                echo "Returning back to connection menu"
+                subsidiary "$db_path"	
+        fi
+else
+        echo "Invalid table name"
+            echo "Returning to connection menu"
+            subsidiary "$db_path" 
+fi
+
+echo "Values inserted successfully"
+
 }
 
 function insert {
 
 db_path="$1"
 
-read -p "Enter table name: " name
+read -p "Enter table name: " i_name
 if [[ $name =~ $regex ]]
 then
-        if [[ -f "$db_path"/"$name" ]]
+        if [[ -f "$db_path"/"$i_name" ]]
         then
 
-              table_key=`awk -F":" '{if(NR==3) print $1}'  $db_path/$name`
-              num_col=`awk 'END{print NF}' $db_path/$name`
+              table_key=`awk -F":" '{if(NR==3) print $1}'  $db_path/$i_name`
+	      num_col=`awk -F":" '{if (NR==1) print NF}' $db_path/$i_name`
                 for (( i=1; i<=num_col; i++ ))
                         do
-                                col_name=`awk -v i=$i -F":" '{if(NR==1) print $i}' $db_path/$name`
-                                col_type=`awk -v i=$i -F":" '{if(NR==2) print $i}' $db_path/$name`
+                                col_name=`awk -v i=$i -F":" '{if(NR==1) print $i}' $db_path/$i_name`
+                                col_type=`awk -v i=$i -F":" '{if(NR==2) print $i}' $db_path/$i_name`
                                 read -p "Enter the value of $col_name ($col_type): " data
                                 if [[ $col_type == "INTEGER" ]]
                                 then
+elements+=(`awk -v i=$i -F":" '{print $i}' $db_path/$i_name`)
+if [[ $i -eq $table_key ]]
+then
+         for element in "${elements[@]}"
+           do
+               if [[ $element != "$data"  ]]
+              then
+                 continue
+              else
+                check=1
+                break
+               fi
+           done
+
+           if [[ $check != 1 ]]
+           then
+
                                         if [[ $data =~ ^[0-9]+$ ]]
                                         then
-                                                col_${i}=$data
-                                                echo ${col_${i}}
+                                                col[$i]=$data
                                         else
                                                 echo "You must enter an integer number"
+						echo "Returning back to connection menu"
+						subsidiary "$db_path" 
                                         fi
+            else
+              echo "Dublicated value! primary key must be unique"
+	      echo "Returning back to connection menu"
+              subsidiary "$db_path" 
+            fi
+else
+                                        if [[ $data =~ ^[0-9]+$ ]]
+                                        then
+                                                col[$i]=$data
+                                        elif [[ -z $data  ]]
+					then
+						col[$i]="NULL"
+					else	
+                                                echo "You must enter an integer number"
+						echo "Returning back to connection menu"
+                                                subsidiary "$db_path" 
+                                        fi
+fi
+   
                                 else
+if [[ $i -eq $table_key ]]
+then
+         for element in "${elements[@]}"
+           do
+               if [[ $element != "$data"  ]]
+              then
+                 continue
+              else
+                check=1
+                break
+               fi
+           done
+
+           if [[ $check != 1 ]]
+           then
+
                                          if [[ $data =~ ^[a-zA-Z]+$  ]]
                                          then
-                                                col_[$i]=$data
-                                                echo ${col_[i]}
+						 col[$i]=$data
                                          else
                                                 echo "You must enter a string"
+						echo "Returning back to connection menu"
+                                                subsidiary "$db_path" 
 
                                         fi
+            else
+              echo "Dublicated value! primary key must be unique"
+	      echo "Returning back to connection menu"
+              subsidiary "$db_path"
+            fi
+else
+                                        if [[ $data =~ ^[a-zA-Z]+$  ]]
+                                         then
+                                                 col[$i]=$data
+					 elif [[ -z $data  ]]
+                                         then
+                                                col[$i]="NULL"
+                                         else
+
+                                                echo "You must enter a string"
+						echo "Returning back to connection menu"
+                                                subsidiary "$db_path"
+
+                                       fi
+fi
+
                                 fi
                         done
         else
                 echo "Table does not exist"
-                subsidiary ./DBMS/$name
+                echo "Returning back to connection menu"
+                subsidiary "$db_path"
         fi
 else
         echo "Invalid table name"
             echo "Returning to connection menu"
-            subsidiary ./DBMS/$name
+            subsidiary "$db_path" 
 fi
 
+echo "Values inserted successfully"
+
+for i in "${col[@]}"
+do
+	echo -ne "$i:" >> $db_path/$i_name
+done
+	echo -ne "\n" >> $db_path/$i_name
+	sed -i 's/:$//' $db_path/$i_name
 }
 
 
