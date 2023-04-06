@@ -36,7 +36,7 @@ select y in "Create table" "List tables" "Drop table" "Insert into table" "Selec
                                                 1) create_table $1 ;;
                                                 2) . ./list_tables.sh ;;
                                                 3) . ./drop_table.sh ;;
-                                                4) insert.sh $1 ;;
+                                                4) insert $1 ;;
                                                 5) . ./select_from.sh ;;
                                                 6) . ./update.sh ;;
                                                 7) . ./delete.sh ;;
@@ -126,7 +126,7 @@ prepare_table()
 
     if [[ $key == "" ]]
     then
-	    key=${column_arr[0]}
+	    key=1
 	    echo "Table must have a primary key"
 	    echo "Column $key is set as your primary key"
     fi
@@ -171,6 +171,56 @@ create_table()
     fi
     
 }
+
+function insert {
+
+db_path="$1"
+
+read -p "Enter table name: " name
+if [[ $name =~ $regex ]]
+then
+        if [[ -f "$db_path"/"$name" ]]
+        then
+
+              table_key=`awk -F":" '{if(NR==3) print $1}'  $db_path/$name`
+              num_col=`awk 'END{print NF}' $db_path/$name`
+                for (( i=1; i<=num_col; i++ ))
+                        do
+                                col_name=`awk -v i=$i -F":" '{if(NR==1) print $i}' $db_path/$name`
+                                col_type=`awk -v i=$i -F":" '{if(NR==2) print $i}' $db_path/$name`
+                                read -p "Enter the value of $col_name ($col_type): " data
+                                if [[ $col_type == "INTEGER" ]]
+                                then
+                                        if [[ $data =~ ^[0-9]+$ ]]
+                                        then
+                                                col_${i}=$data
+                                                echo ${col_${i}}
+                                        else
+                                                echo "You must enter an integer number"
+                                        fi
+                                else
+                                         if [[ $data =~ ^[a-zA-Z]+$  ]]
+                                         then
+                                                col_[$i]=$data
+                                                echo ${col_[i]}
+                                         else
+                                                echo "You must enter a string"
+
+                                        fi
+                                fi
+                        done
+        else
+                echo "Table does not exist"
+                subsidiary ./DBMS/$name
+        fi
+else
+        echo "Invalid table name"
+            echo "Returning to connection menu"
+            subsidiary ./DBMS/$name
+fi
+
+}
+
 
 
 function main {
