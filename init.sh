@@ -197,32 +197,23 @@ update_table()
 }
 
 function subsidiary {
-
+db=$2
 echo "==================================================="
-echo "                  Connection menu		         "
+echo "             Connected to $db database		         "
 echo "==================================================="
 
 select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
                                 do
                                         case $REPLY in
-                                                1) 
-													create_table $1 ;;
-                                                2) 
-													ls $1 | cat ;;
-                                                3) 
-													drop_table.sh ;;
-                                                4) 
-													insert $1 ;;
-                                                5) 
-													select_from $1 ;;
-                                                6) 
-                                                    update_table $1 ;;
-                                                7) 
-													delete $1 ;;
-                                                8) 
-													main ;;
-                                                *) 
-													echo "Invaild input" ;;
+                                                1) create_table $1 ;;
+                                                2) ls $1 | cat ;;
+                                                3) drop_table.sh ;;
+                                                4) insert $1 ;;
+                                                5) select_from $1 ;;
+                                                6) update_table $1 ;;
+                                                7) delete $1 ;;
+                                                8) main ;;
+                                                *) echo "Invaild input" ;;
 
                                         esac
                                 done
@@ -352,6 +343,33 @@ create_table()
     fi
     
 }
+function drop {
+db_path="$1"
+
+read -p "Enter table name: " d_name
+if [[ $d_name =~ $regex ]]
+then
+        if [[ -f "$db_path"/"$d_name" ]]
+        then
+		echo "Are you sure you want to permenently delete table $d_name"
+		select ans in "yes" "no"
+		do
+		   case $REPLY in
+			   1) rm -f "$db_path"/"$d_name" ;;
+			   2) echo "Returning to connection menu"
+				   "$db_path"/"$d_name";;
+			   *) echo "Invaild input" ;;
+		   esac
+	   done
+	else
+		echo "Table does not exist"
+	fi
+else
+    echo "Invaild input"
+fi
+
+}
+
 function delete {
 
 db_path="$1"
@@ -361,57 +379,101 @@ if [[ $d_name =~ $regex ]]
 then
         if [[ -f "$db_path"/"$d_name" ]]
         then
-              rows_num=`awk -F":" 'END{print NR}' "$db_path"/"$d_name"`
-		select del in "Delete by row" "Delete all"
-		do
-			case $REPLY in 
-			  1) read -p "Enter the number of the row you want to delete: " row
-				if [[ $row =~ ^[0-9]+$ ]]
-				then
-				  var=$((row+3)) 
-                                 if [[ $var -le $rows_num ]]
-				 then
-					 sed -i "${var}d" "$db_path"/"$d_name"
-					 break
-				 else
-					 echo "Row does not exist!"
-				 fi
-			  	else
-					echo "invalid input"
-				fi
-				  ;;
-			  2)select choice in "yes" "no"
-			  do
-				  case $REPLY in 
-					  1) sed -i '4,$d' "$db_path"
-						 break ;;
+                clear
+        echo    "==================================================="
+        echo    "                table $d_name data                 "
+        echo    "==================================================="
+       awk -F":" 'BEGIN{OFS=" | "; ORS="\n-------------\n"} {if(NR!=2 && NR!=3){$1=$1; print $0}}' "$db_path"/"$d_name"
+              row_num=`awk -F":" 'END{print NR}' "$db_path"/"$d_name"`
+	      echo -ne "\n"
+                select del in "Delete by row number" "Delete by column name" "Delete all"
+                do
+                        case $REPLY in
+                          1) read -p "Enter the number of the row you want to delete: " row
+                                if [[ $row =~ ^[0-9]+$ ]]
+                                then
+                                  var=$((row+3))
+                                 if [[ $var -le $row_num ]]
+                                 then
+                                         sed -i "${var}d" "$db_path"/"$d_name"
+                                         break
+                                 else
+                                         echo "Row does not exist!"
+                                 fi
+                                else
+                                        echo "invalid input"
+                                fi
+                                  ;;
+                          2) read -p "Enter the name of the column you want to delete: " colu
 
-					  2) echo "Returning back to connection menu"
+                                  key=`awk -F":" '{if(NR==3) print $1}'  $db_path/$d_name`
+                                  num_colu=`awk -F":" '{if (NR==1) print NF}' $db_path/$d_name`
+                                  check=`awk -v num_colu=$num_colu -v colu=$colu -F":" '{
+
+                        if (NR==1) {
+                                for (i=1;i<=num_colu;i++)
+                                        {
+                                if ( $i == colu ) print 1
+                                        }
+                                   }    
+                        }' "$db_path"/"$d_name"`
+                        if [[ $check -eq 1 ]]
+                        then
+                        colu_num=`awk -v num_colu=$num_colu -v colu=$colu -F":" '{
+                        if (NR==1) {
+                                for (i=1;i<=num_colu;i++)
+                                        {
+                                if ( $i == colu ) print i
+                                        }
+                                   }    
+                        }' "$db_path"/"$d_name"`
+                                if [[ $colu_num -eq $key ]]
+                                then
+                                        echo "You can not delete the primary key column"
+                                else
+        awk -i inplace -v i=$colu_num -v OFS=":" -F":" '{if(NR != 3) {$i=""}; print $0}' "$db_path"/"$d_name"
+                                        sed -i 's/::/:/g' "$db_path"/"$d_name"
+                                        sed -i 's/^://' "$db_path"/"$d_name"
+                                        sed -i 's/:$//' "$db_path"/"$d_name"
+                                fi
+                        else
+                                echo "Column does not exist"
+                        fi
+                        ;;
+                          3) echo "Are you sure you want to delete the entire table data"
+                                  select choice in "yes" "no"
+                          do
+                                  case $REPLY in
+                                          1) sed -i '4,$d' "$db_path"
+                                                 break ;;
+
+                                          2) echo "Returning back to connection menu"
                                              subsidiary "$db_path"
-					     ;;
+                                             ;;
 
-				          *) echo "Invalid input"
-						  ;;
-				  esac
-			  done 
-				  ;;
+                                          *) echo "Invalid input"
+                                                  ;;
+                                  esac
+                          done
+                                  ;;
 
-			  *) echo "Invalid input"
-				  ;;
-			esac
-		done
+
+                          *) echo "Invalid input"
+                                  ;;
+                        esac
+                done
         else
                 echo "Table does not exist"
                 echo "Returning back to connection menu"
-                subsidiary "$db_path"	
+                subsidiary "$db_path"
         fi
 else
         echo "Invalid table name"
             echo "Returning to connection menu"
-            subsidiary "$db_path" 
+            subsidiary "$db_path"
 fi
 
-echo "Values inserted successfully"
+echo "Values deleted successfully"
 
 }
 
@@ -592,7 +654,7 @@ do
 
 			if [[ -d ./DBMS/$name ]]
 			then
-				subsidiary ./DBMS/$name
+				subsidiary ./DBMS/$name $name
 			else
 				echo "Database does not exist"
 			fi ;;
