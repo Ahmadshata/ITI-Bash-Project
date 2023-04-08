@@ -24,6 +24,178 @@ function validate {
 	fi	
 }
 
+select_from()
+{
+	read -p "Enter table name: " st_name
+	if [[ -f $1/$st_name ]]
+	then
+		select choice in "All" "Column" "Row" 
+		do
+			case $choice in 
+				"Column")
+					read -p "Enter column number that you want to display: " scol_num
+					cols_num=$(awk -F ":" 'END{print NF}' $1/$st_name)
+					rows_num=$(awk -F ":" 'END{print NF}' $1/$st_name)
+					if [[ $scol_num =~ ^[0-9]+$ ]]
+					then
+						if [[ $scol_num -gt $cols_num ]]
+						then
+							echo "Out of range"
+						else
+							awk -F ":" -v cn=$scol_num  '{if(NR>3) print $cn}' $1/$st_name
+						fi
+					else
+						echo "Please enter a valid number"
+					fi
+					subsidiary $1
+					break;;
+				"Row")
+					read -p "Enter row number that you want to display: " srow_num
+					cols_num=$(awk 'END{print NF}' $1/$st_name)
+					rows_num=$(awk 'END{print NF}' $1/$st_name)
+					if [[ $srow_num =~ ^[0-9]+$ ]]
+					then
+						if [[ $srow_num -gt $rows_num ]]
+						then
+							echo "Out of range"
+						else
+							awk -F ":" -v rn=$(($srow_num+3)) '{if(NR==rn) print $0}' $1/$st_name
+						fi
+					else
+						echo "Please enter a valid number"
+					fi
+					subsidiary $1
+					break;;
+				"All")
+					awk -F ":" '{if(NR>3) print $0}' $1/$st_name
+					subsidiary $1
+					break;;
+			esac
+
+		done
+
+
+
+
+					
+
+	else
+		echo "Table doesn't exist"
+	fi
+	echo
+}
+update_table()
+{
+	read -p "Enter table name: " t_name
+	if [[ -f $1/$t_name ]]
+	then
+		
+		select choice in "Line number" "Primary key"
+		do
+			case $choice in 
+				"Line number")
+					read -p "Enter row number to change" row_num
+                    row_num=$(("$row_num"+3))
+					last_line=$(awk -F ":" 'END{print NR}' $1/$t_name)
+					if [[ $row_num -gt $last_line ]]
+					then
+						echo "Out of range"
+					else
+						colnum=$(awk -F ":" '{if(NR==1) print NF}' $1/$t_name)
+                        i=1
+						#echo outside loop
+						while [[ $i -le $colnum ]]
+						do
+							#echo inside loop
+							col_arr=$(awk -v i=$i -F":" '{if(NR==1) print $i}' $1/$t_name)
+							col_type=$(awk -v i=$i -F":" '{if(NR==2) print $i}' $1/$t_name)
+							current_value=$(awk -v i=$i -v ln=$row_num -F":" '{if(NR==ln) print $i}' $1/$t_name)
+							read -p "Enter the new value for $col_arr ($col_type) ($current_value): " new_value
+							if [[ $col_type == "INTEGER" && $new_value =~ ^[0-9]+$  ]]
+							then
+								sed -i "$row_num s/$current_value/$new_value/" $1/$t_name
+							elif [[ $col_type == "VARCHAR" && $new_value =~ ^[a-zA-Z]+$  ]]
+							then
+								sed -i "$row_num s/$current_value/$new_value/" $1/$t_name
+							else
+								echo "Invalid type"
+								break
+							fi
+							i=$(($i+1))
+						done
+					fi
+					#clear
+					echo "Returning to connection menu"
+					subsidiary $1 
+                    break;;
+
+				"Primary key")
+					read -p "Enter the primary key: " pk_value
+					last_line=$(awk -F ":" 'END{print NR}' $1/$t_name)
+					pk_col_num=$(awk -F":" '{if(NR==3) print $1}'  $1/$t_name)
+					#echo $pk_col_num
+					#pk_arr+=$(awk -F ":" -v pk=$pk_col_num '{print $pk}' $1/$t_name)
+					pk_arr=()
+					index=0
+					line_n=0
+					#awk -v pk_col_num=$pk_col_num '{print i,pk_col_num}'
+					for (( i=4; i<= $last_line; i++ ))
+					do
+						
+						pk_arr[$index]=$(awk -F ":" -v i=$i -v pk_col_num=$pk_col_num  '{if(NR==i) print $pk_col_num}' $1/$t_name)
+						echo "${pk_arr[$index]}"
+						
+						if [[ $pk_value == "${pk_arr[$index]}" ]]
+						then
+							echo inside check
+							line_n=$i
+							break
+
+						fi
+						index=$(($index+1))
+					done
+
+					if [[ $line_n != 0 ]]
+					then
+						col_num=$(awk -F ":" 'END{print NF}' $1/$t_name)
+						i=1
+						while [[ $i -le $col_num ]]
+						do
+							col_arr=$(awk -v i=$i -F":" '{if(NR==1) print $i}' $1/$t_name)
+							col_type=$(awk -v i=$i -F":" '{if(NR==2) print $i}' $1/$t_name)
+							current_value=$(awk -v i=$i -v ln=$line_n -F":" '{if(NR==ln) print $i}' $1/$t_name)
+							read -p "Enter the new value for $col_arr ($col_type) ($current_value): " new_value
+							if [[ $col_type == "INTEGER" && $new_value =~ ^[0-9]+$  ]]
+							then
+								sed -i "$line_n s/$current_value/$new_value/" $1/$t_name
+								
+							elif [[ $col_type == "VARCHAR" && $new_value =~ ^[a-zA-Z]+$  ]]
+							then
+								sed -i "$row_num s/$current_value/$new_value/" $1/$t_name
+							else
+								echo "Invalid type"
+								break
+							fi
+							i=$(($i+1))
+						done
+							
+					else
+						echo "Value doesn't exist"
+					fi
+					break;;
+
+				esac
+
+		done
+
+	else
+		echo "Table doesn't exist"
+	fi
+
+		
+
+}
+
 function subsidiary {
 
 echo "==================================================="
@@ -33,15 +205,24 @@ echo "==================================================="
 select y in "Create table" "List tables" "Drop table" "Insert into table" "Select from table" "Update table" " Delete table" "return to main menu"
                                 do
                                         case $REPLY in
-                                                1) create_table $1 ;;
-                                                2) ls $1 | cat ;;
-                                                3) . ./drop_table.sh ;;
-                                                4) insert $1 ;;
-                                                5) . ./select_from.sh ;;
-                                                6) . ./update.sh ;;
-                                                7) delete $1 ;;
-                                                8) main ;;
-                                                *) echo "Invaild input" ;;
+                                                1) 
+													create_table $1 ;;
+                                                2) 
+													ls $1 | cat ;;
+                                                3) 
+													drop_table.sh ;;
+                                                4) 
+													insert $1 ;;
+                                                5) 
+													select_from $1 ;;
+                                                6) 
+                                                    update_table $1 ;;
+                                                7) 
+													delete $1 ;;
+                                                8) 
+													main ;;
+                                                *) 
+													echo "Invaild input" ;;
 
                                         esac
                                 done
@@ -175,12 +356,12 @@ function delete {
 
 db_path="$1"
 
-read -p "Enter table name: " t_name
-if [[ $name =~ $regex ]]
+read -p "Enter table name: " d_name
+if [[ $d_name =~ $regex ]]
 then
-        if [[ -f "$db_path"/"$t_name" ]]
+        if [[ -f "$db_path"/"$d_name" ]]
         then
-              row_num=`awk -F":" 'END{print NR}' "$db_path"/"$t_name"`
+              rows_num=`awk -F":" 'END{print NR}' "$db_path"/"$d_name"`
 		select del in "Delete by row" "Delete all"
 		do
 			case $REPLY in 
@@ -188,9 +369,9 @@ then
 				if [[ $row =~ ^[0-9]+$ ]]
 				then
 				  var=$((row+3)) 
-                                 if [[ $var -le $row_num ]]
+                                 if [[ $var -le $rows_num ]]
 				 then
-					 sed -i "${var}d" "$db_path"/"$t_name"
+					 sed -i "${var}d" "$db_path"/"$d_name"
 					 break
 				 else
 					 echo "Row does not exist!"
@@ -239,48 +420,49 @@ function insert {
 db_path="$1"
 
 read -p "Enter table name: " i_name
-if [[ $name =~ $regex ]]
+if [[ $i_name =~ $regex ]]
 then
         if [[ -f "$db_path"/"$i_name" ]]
         then
 
-              table_key=`awk -F":" '{if(NR==3) print $1}'  $db_path/$i_name`
-	      num_col=`awk -F":" '{if (NR==1) print NF}' $db_path/$i_name`
+              table_key=$(awk -F":" '{if(NR==3) print $1}'  $db_path/$i_name)
+	      num_col=$(awk -F":" '{if (NR==1) print NF}' $db_path/$i_name)
                 for (( i=1; i<=num_col; i++ ))
                         do
-                                col_name=`awk -v i=$i -F":" '{if(NR==1) print $i}' $db_path/$i_name`
-                                col_type=`awk -v i=$i -F":" '{if(NR==2) print $i}' $db_path/$i_name`
+                                col_name=$(awk -v i=$i -F":" '{if(NR==1) print $i}' $db_path/$i_name)
+                                col_type=$(awk -v i=$i -F":" '{if(NR==2) print $i}' $db_path/$i_name)
                                 read -p "Enter the value of $col_name ($col_type): " data
                                 if [[ $col_type == "INTEGER" ]]
                                 then
-elements+=(`awk -v i=$i -F":" '{print $i}' $db_path/$i_name`)
-if [[ $i -eq $table_key ]]
-then
-         for element in "${elements[@]}"
-           do
-               if [[ $element != "$data"  ]]
-              then
-                 continue
-              else
-                check=1
-                break
-               fi
-           done
+                                elements+=$(awk -v i=$i -F":" '{print $i}' $db_path/$i_name)
+                                if [[ $i -eq $table_key ]]
+                                then
+                                        for element in "${elements[@]}"
+                                        do
+                                            if [[ $element != "$data"  ]]
+                                            then
+                                                continue
+                                            else
+                                                check=1
+                                                break
+                                            fi
+                                        done
 
-           if [[ $check != 1 ]]
-           then
+                                        if [[ $check != 1 ]]
+                                        then
 
                                         if [[ $data =~ ^[0-9]+$ ]]
                                         then
                                                 col[$i]=$data
                                         else
                                                 echo "You must enter an integer number"
-						echo "Returning back to connection menu"
-						subsidiary "$db_path" 
+						                        echo "Returning back to connection menu"
+						                        subsidiary "$db_path" 
                                         fi
             else
               echo "Dublicated value! primary key must be unique"
 	      echo "Returning back to connection menu"
+          elements=()
               subsidiary "$db_path" 
             fi
 else
